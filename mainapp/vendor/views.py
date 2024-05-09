@@ -23,14 +23,19 @@ class PerformanceApi(generics.ListAPIView):
         vendor_id = self.kwargs['vendor_code']
         vendor_object = self.get_object(vendor_id)
         performance_instance = Performance.objects.create(
-            vendor = vendor_object,
+            vendor=vendor_object,
             on_time_delivery_rate=vendor_object.on_time_delivery_rate,
-            quality_rating_avg = vendor_object.quality_rating_avg,
-            average_response_time = vendor_object.average_response_time,
-            fulfillment_rate = vendor_object.fulfillment_rate
-            )
+            quality_rating_avg=vendor_object.quality_rating_avg,
+            average_response_time=vendor_object.average_response_time,
+            fulfillment_rate=vendor_object.fulfillment_rate
+        )
         serializer = self.get_serializer(performance_instance)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        final_data = {**serializer.data}
+        average_response_time_hours = serializer.data.get(
+            'average_response_time') / 3600
+        final_data['average_response_time_hours'] = average_response_time_hours
+        final_data.pop('average_response_time')
+        return Response(final_data, status=status.HTTP_200_OK)
 
 
 class OrderApi(generics.UpdateAPIView):
@@ -48,30 +53,29 @@ class OrderApi(generics.UpdateAPIView):
         self.po_number = self.kwargs['po_number']
         object = PurchaseOrder.objects.filter(po_number=self.po_number).first()
         if object is None:
-            return Response({"message":"vendor not found"},status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "vendor not found"}, status=status.HTTP_404_NOT_FOUND)
         if object.acknowledgment_date == None:
-            return Response({"message":"the order has not been acknowledged"})
+            return Response({"message": "the order has not been acknowledged"})
         if object.order_date != None:
-            return Response({"message":"the order has been ordered already"})
+            return Response({"message": "the order has been ordered already"})
         updated_object = self.update_order_delivery(object)
-        serializer = self.get_serializer(updated_object, data=request.data, partial=True)
+        serializer = self.get_serializer(
+            updated_object, data=request.data, partial=True)
         if serializer.is_valid() == False:
-            return Response({"message":"Enter corect datetime format"})
+            return Response({"message": "Enter corect datetime format"})
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
-        
-        
 
 
 class VendorsListCreateApiView(generics.ListAPIView, generics.CreateAPIView):
     queryset = Vendor.objects.all()
     serializer_class = VendorsSerializers
-    
+
     def post(self, request, *args, **kwargs):
         data = request.data
         serializer = self.get_serializer(data=data)
         if serializer.is_valid() == False:
-            return Response({"Exists":"The vendor is already exists"})
+            return Response({"Exists": "The vendor is already exists"})
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -79,8 +83,6 @@ class VendorsListCreateApiView(generics.ListAPIView, generics.CreateAPIView):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-
 
 
 class VendorUpdatedeleteView(generics.ListAPIView, generics.UpdateAPIView, generics.DestroyAPIView):
@@ -95,14 +97,14 @@ class VendorUpdatedeleteView(generics.ListAPIView, generics.UpdateAPIView, gener
         partial = kwargs.pop('partial', False)
         instance = self.get_object(self.vendor_code)
         if instance is None:
-            return Response({"message":"vendor not found"},status=status.HTTP_404_NOT_FOUND)
-        
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+            return Response({"message": "vendor not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.get_serializer(
+            instance, data=request.data, partial=partial)
         if serializer.is_valid() == False:
             return Response(serializer.errors)
         serializer.save()
         return Response(serializer.data, status.HTTP_202_ACCEPTED)
-        
 
     def patch(self, request, *args, **kwargs):
         kwargs['partial'] = True
@@ -112,14 +114,14 @@ class VendorUpdatedeleteView(generics.ListAPIView, generics.UpdateAPIView, gener
         self.vendor_code = self.kwargs['vendor_code']
         object = self.get_object(self.vendor_code)
         if object is None:
-            return Response({"message":"vendor not found"},status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "vendor not found"}, status=status.HTTP_404_NOT_FOUND)
         serializer = self.get_serializer(object)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+
     def delete(self, request, *args, **kwargs):
         self.vendor_code = self.kwargs['vendor_code']
         object = self.get_object(self.vendor_code)
         if object is None:
-            return Response({"message":"vendor not found"},status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "vendor not found"}, status=status.HTTP_404_NOT_FOUND)
         object.delete()
-        return Response({},status=status.HTTP_204_NO_CONTENT)
+        return Response({}, status=status.HTTP_204_NO_CONTENT)
