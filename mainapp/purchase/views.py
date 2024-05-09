@@ -18,9 +18,9 @@ class RatingApi(generics.UpdateAPIView):
         if object is None:
             return Response({"message":"Purchase order not found"},status=status.HTTP_404_NOT_FOUND)
         if object.status == "completed":
-            print("$$$$$$$$$$$$$$$$$$$$$$$4")
+            if object.quality_rating != 0.0:
+                return Response({"message":"the rating for order is given "})
             Vendor.qualityrating(object, request_data)
-            print("%%%%%%%%%%%%%%%%%%%%%%%%%%%")
             object.quality_rating = request_data.get('quality_rating')
             serializer = self.get_serializer(object, data=request.data, partial=True)
             if serializer.is_valid() == False:
@@ -38,9 +38,15 @@ class DeliveryApi(generics.UpdateAPIView):
         current_time = datetime.now()
         current_aware_time = current_time.astimezone(timezone.utc)
         real_delivery_date = current_aware_time
-        if object.status == "completed":
-            return object
-        Vendor.ontimedelivery(object, real_delivery_date)
+        object.status = OrderStatus.COMPLETED
+        object.save()
+        if real_delivery_date <= object.delivery_date:
+            vendor_obj = Vendor.objects.filter(vendor_code=object.vendor_id).first()
+            vendor_obj.ontime_deliver_order = vendor_obj.ontime_deliver_order + 1
+            vendor_obj.save()
+
+        Vendor.ontimedelivery(object)
+        Vendor.fullfillmentrate(object)
         object.delivery_date = real_delivery_date
         return object
 
@@ -49,10 +55,9 @@ class DeliveryApi(generics.UpdateAPIView):
         object = PurchaseOrder.objects.filter(po_number=self.po_number).first()
         if object is None:
             return Response({"message":"purchase order not found"},status=status.HTTP_404_NOT_FOUND)
-        updated_object = self.deliverydate(object)
-        if updated_object.status == "completed":
+        if object.status == "completed":
             return Response({"message":"The order is already completed"})
-        updated_object.status = OrderStatus.COMPLETED
+        updated_object = self.deliverydate(object)
         serializer = self.get_serializer(updated_object, data=request.data, partial=True)
         if serializer.is_valid() == False:
             return Response({"message":"Enter corect datetime format"})
@@ -74,15 +79,17 @@ class AcknowledgeApi(generics.UpdateAPIView):
         object = PurchaseOrder.objects.filter(po_number=self.po_number).first()
         if object is None:
             return Response({"message":"vendor not found"},status=status.HTTP_404_NOT_FOUND)
-        if object.status == "completed":
-            return Response({"message":"The order is already completed"})
-        updated_object = self.acknowledgetime(object)
-        serializer = self.get_serializer(updated_object, data=request.data, partial=True)
-        if serializer.is_valid() == False:
-            return Response({"message":"Enter corect datetime format"})
-        serializer.save()
-        Vendor.responsetime(object)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        if object.acknowledgment_date == None:
+            if object.status == "completed":
+                return Response({"message":"The order is already completed"})
+            updated_object = self.acknowledgetime(object)
+            serializer = self.get_serializer(updated_object, data=request.data, partial=True)
+            if serializer.is_valid() == False:
+                return Response({"message":"Enter corect datetime format"})
+            serializer.save()
+            Vendor.responsetime(object)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"message":"The order is already acknowledged"})
 
 
 

@@ -49,14 +49,18 @@ class OrderApi(generics.UpdateAPIView):
         object = PurchaseOrder.objects.filter(po_number=self.po_number).first()
         if object is None:
             return Response({"message":"vendor not found"},status=status.HTTP_404_NOT_FOUND)
-        if object.status == "completed":
-            return Response({"message":"The order is already completed"})
+        if object.acknowledgment_date == None:
+            return Response({"message":"the order has not been acknowledged"})
+        if object.order_date != None:
+            return Response({"message":"the order has been ordered already"})
         updated_object = self.update_order_delivery(object)
         serializer = self.get_serializer(updated_object, data=request.data, partial=True)
         if serializer.is_valid() == False:
             return Response({"message":"Enter corect datetime format"})
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
+        
+        
 
 
 class VendorsListCreateApiView(generics.ListAPIView, generics.CreateAPIView):

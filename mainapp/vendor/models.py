@@ -2,12 +2,6 @@ from django.db import models
 from datetime import datetime, timedelta
 
 class Vendor(models.Model):
-    Response_list = []
-    ontime_count = []
-    completed_time = []
-    full_fillment_rate = []
-    rating = []
-    
     vendor_code = models.CharField(primary_key=True, max_length=20)
     name = models.CharField(max_length=20)
     contact_details = models.TextField(unique=True)
@@ -16,60 +10,51 @@ class Vendor(models.Model):
     quality_rating_avg = models.FloatField(blank=True, default=0.0)
     average_response_time = models.FloatField(blank=True, default=0.0)
     fulfillment_rate = models.FloatField(blank=True, default=0.0)
+    ontime_deliver_order = models.IntegerField(default=0)
 
     def __str__(self) -> str:
         return f"Name-{self.name}, Vendor_code-{self.vendor_code}"
     
     def responsetime(self):
+        from purchase.models import PurchaseOrder
         start_time = self.issue_date
         end_time = self.acknowledgment_date
 
         time_difference = end_time - start_time
-        Vendor.Response_list.append(time_difference)
-
-        total_delta = sum(Vendor.Response_list, timedelta(0))
-        average_delta = total_delta / len(Vendor.Response_list)
-
-        total_seconds = average_delta.total_seconds()   
-        if total_seconds >= 60 * 60:
-            formatted_timedelta = total_seconds / (60 * 60) 
-            unit = "hours"
-        elif total_seconds >= 60: 
-            formatted_timedelta = total_seconds / 60 
-            unit = "minutes"
-        else:
-            formatted_timedelta = total_seconds
-            unit = "seconds"
-
-        print(f"Formatted timedelta: {formatted_timedelta} {unit}")
-        vendor_id = self.vendor_id
-        vendor_obj = Vendor.objects.filter(vendor_code=vendor_id).first()
-        vendor_obj.average_response_time = formatted_timedelta
+        seconds_difference = time_difference.total_seconds()
+        total_order = PurchaseOrder.objects.filter(vendor_id = self.vendor_id).count()
+        vendor_obj = Vendor.objects.filter(vendor_code=self.vendor_id).first()
+        new_sum = total_order*vendor_obj.average_response_time + seconds_difference
+        new_average = new_sum/total_order
+        vendor_obj.average_response_time = new_average
         vendor_obj.save()
-        
-    def ontimedelivery(self, real_delivery_date):
-        print(self.delivery_date)
-        Vendor.completed_time.append(self.delivery_date)
-        if real_delivery_date <= self.delivery_date:
-            print(real_delivery_date, self.delivery_date)
-            Vendor.ontime_count.append(real_delivery_date)
-        on_time_delivery_data = float(len(Vendor.ontime_count)/len(Vendor.completed_time))
-        print(on_time_delivery_data)
-        print(Vendor.completed_time, Vendor.ontime_count)
-        vendor_id = self.vendor_id
-        vendor_obj = Vendor.objects.filter(vendor_code=vendor_id).first()
-        vendor_obj.on_time_delivery_rate = on_time_delivery_data
+
+    def ontimedelivery(self):
+        from purchase.models import PurchaseOrder
+        vendor_obj = Vendor.objects.filter(vendor_code=self.vendor_id).first()
+        on_time_deliveries = vendor_obj.ontime_deliver_order
+        total_completed_order = PurchaseOrder.objects.filter(vendor_id = self.vendor_id).filter(status = "completed").count()
+        req_on_time_delivery_rate = on_time_deliveries/total_completed_order
+        vendor_obj.on_time_delivery_rate = req_on_time_delivery_rate
         vendor_obj.save()
 
     def fullfillmentrate(self):
-        pass
+        from purchase.models import PurchaseOrder
+        completed_order = PurchaseOrder.objects.filter(vendor_id = self.vendor_id).filter(status = "completed").count()
+        total_issued_order = PurchaseOrder.objects.filter(vendor_id = self.vendor_id).count()
+        req_fullfilment_rate = completed_order/total_issued_order
+        vendor_obj = Vendor.objects.filter(vendor_code=self.vendor_id).first()
+        vendor_obj.fulfillment_rate = req_fullfilment_rate
+        vendor_obj.save()
 
     def qualityrating(self, request_data):
-        Vendor.rating.append(request_data.get('quality_rating'))
-        print(Vendor.rating)
-        total_rating = sum(Vendor.rating)
-        print(total_rating)
-        average_rating = total_rating / len(Vendor.rating)
-        vendor_obj = Vendor.objects.filter(vendor_code = self.vendor_id).first()
-        vendor_obj.quality_rating_avg = average_rating
+        from purchase.models import PurchaseOrder
+        total_order = PurchaseOrder.objects.filter(vendor_id = self.vendor_id).count()
+        vendor_obj = Vendor.objects.filter(vendor_code=self.vendor_id).first()
+        new_sum = total_order*vendor_obj.quality_rating_avg + request_data.get('quality_rating')
+        print(new_sum)
+        print(total_order)
+        new_average = new_sum/(total_order)
+        print(new_average)
+        vendor_obj.quality_rating_avg = new_average
         vendor_obj.save()
