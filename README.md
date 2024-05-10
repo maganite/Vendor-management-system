@@ -78,6 +78,7 @@ The system provides several APIs to manage vendors, purchase orders, and calcula
 - **List and Create Purchase Orders**
   - **GET** `/api/purchase_orders/`: List all purchase orders.
   - **POST** `/api/purchase_orders/`: Create a new purchase order.
+```bash
   payload
   {
     "po_number": "unique-id",
@@ -93,7 +94,7 @@ The system provides several APIs to manage vendors, purchase orders, and calcula
     "acknowledgment_date": null,
     "vendor": "unique-id of vendor"
 }
-
+```
 - **Update, Retrieve, and Delete Purchase Order**
   - **GET** `/api/purchase_orders/<po_number>/`: Retrieve a purchase order.
   - **PUT/PATCH** `/api/purchase_orders/<po_number>/`: Update a purchase order.
