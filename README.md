@@ -51,7 +51,8 @@ The system provides several APIs to manage vendors, purchase orders, and calcula
 - **List and Create Vendors**
   - **GET** `/api/vendors/`: List all vendors.
   - **POST** `/api/vendors/`: Create a new vendor.
-    payload
+```bash
+  payload
     {
         "vendor_code": "unique-id",
         "name": "kush",
@@ -63,7 +64,7 @@ The system provides several APIs to manage vendors, purchase orders, and calcula
         "fulfillment_rate": 0.0,
         "ontime_deliver_order": 0
     }
-
+```
 - **Update, Retrieve, and Delete Vendor**
   - **GET** `/api/vendors/<vendor_code>/`: Retrieve a vendor.
   - **PUT/PATCH** `/api/vendors/<vendor_code>/`: Update a vendor.
